@@ -18,7 +18,12 @@ class Money
             ','    // thousands separator, matching the spreadsheet
         );
 
-        return $withSymbol ? 'Rp'.$formatted : $formatted;
+        if (! $withSymbol) {
+            return $formatted;
+        }
+
+        // Keep the sign in front of the symbol: "-Rp500,000", not "Rp-500,000".
+        return $value < 0 ? '-Rp'.ltrim($formatted, '-') : 'Rp'.$formatted;
     }
 
     /**

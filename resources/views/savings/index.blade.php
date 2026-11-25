@@ -8,21 +8,32 @@
     @php $pct = $totalTarget > 0 ? round(($totalSaved / $totalTarget) * 100, 1) : 0; @endphp
 
     <div class="panel">
-        <div class="grid grid-cols-3 divide-x divide-line">
-            <div class="p-3">
+        <div class="grid grid-cols-2 divide-x divide-line lg:grid-cols-4">
+            <div class="border-b border-line p-3 lg:border-b-0">
                 <p class="lbl">Total saved</p>
                 <p class="num mt-1 text-[17px] font-medium text-pos">@money($totalSaved)</p>
             </div>
-            <div class="p-3">
+            <div class="border-b border-line p-3 lg:border-b-0">
                 <p class="lbl">Total target</p>
                 <p class="num mt-1 text-[17px] font-medium">@money($totalTarget)</p>
             </div>
-            <div class="p-3">
+            <div class="border-b border-line p-3 lg:border-b-0">
                 <p class="lbl">Overall progress</p>
                 <div class="mt-1 flex items-baseline gap-2">
                     <p class="num text-[17px] font-medium">{{ $pct }}%</p>
                     <div class="bar flex-1"><span style="width: {{ min(100, $pct) }}%"></span></div>
                 </div>
+            </div>
+            <div class="p-3">
+                <p class="lbl">Debt outstanding</p>
+                <p class="num mt-1 text-[17px] font-medium {{ $debt['payable'] > 0 ? 'text-neg' : 'text-muted' }}">@money($debt['payable'])</p>
+                <p class="text-[10px] text-faint">
+                    @if ($debt['receivable'] > 0)
+                        plus @money($debt['receivable']) owed to you
+                    @else
+                        still to pay
+                    @endif
+                </p>
             </div>
         </div>
     </div>

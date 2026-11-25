@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Debt;
 use App\Models\Holding;
 use App\Services\ReportService;
 use App\Support\Money;
@@ -28,6 +29,7 @@ class PortfolioController extends Controller
             'holdings' => $holdings,
             'summary' => ReportService::for($request->user()->id)->portfolio(),
             'byType' => $byType,
+            'debt' => Debt::summaryFor($request->user()->id),
         ]);
     }
 

@@ -11,12 +11,17 @@ class TelegramWebhookController extends Controller
 {
     public function __invoke(Request $request, string $secret, TelegramBot $bot): JsonResponse
     {
+        // The config column is encrypted, so the secret cannot be matched with a
+        // JSON path query — compare it in PHP after decryption instead.
         $integration = Integration::query()
             ->where('provider', Integration::TELEGRAM)
             ->where('is_active', true)
-            ->where('config->webhook_secret', $secret)
             ->with('user')
-            ->first();
+            ->get()
+            ->first(fn (Integration $candidate) => hash_equals(
+                (string) $candidate->configValue('webhook_secret', ''),
+                $secret
+            ));
 
         // Unknown secret: pretend nothing is here.
         abort_unless($integration && $integration->user, 404);

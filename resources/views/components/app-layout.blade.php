@@ -37,6 +37,7 @@
     ];
     $secondaryNav = [
         ['route' => 'savings.index', 'label' => 'Savings', 'icon' => 'savings'],
+        ['route' => 'debts.index', 'label' => 'Debts', 'icon' => 'debt'],
         ['route' => 'portfolio.index', 'label' => 'Portfolio', 'icon' => 'portfolio'],
         ['route' => 'settings.index', 'label' => 'Integrations', 'icon' => 'settings'],
     ];

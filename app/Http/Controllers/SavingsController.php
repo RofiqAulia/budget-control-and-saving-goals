@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Debt;
 use App\Models\SavingsGoal;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ class SavingsController extends Controller
             'goals' => $goals,
             'totalTarget' => (float) $goals->where('is_completed', false)->sum('target_amount'),
             'totalSaved' => (float) $goals->where('is_completed', false)->sum('saved_amount'),
+            'debt' => Debt::summaryFor($request->user()->id),
         ]);
     }
 

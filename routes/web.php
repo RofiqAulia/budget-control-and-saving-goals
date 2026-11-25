@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebtController;
 use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SavingsController;
@@ -63,6 +64,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/portfolio', [PortfolioController::class, 'store'])->name('portfolio.store');
     Route::put('/portfolio/{holding}', [PortfolioController::class, 'update'])->name('portfolio.update');
     Route::delete('/portfolio/{holding}', [PortfolioController::class, 'destroy'])->name('portfolio.destroy');
+
+    // Debts and receivables; they feed net worth on the portfolio page.
+    Route::get('/debts', [DebtController::class, 'index'])->name('debts.index');
+    Route::post('/debts', [DebtController::class, 'store'])->name('debts.store');
+    Route::put('/debts/{debt}', [DebtController::class, 'update'])->name('debts.update');
+    Route::post('/debts/{debt}/pay', [DebtController::class, 'pay'])->name('debts.pay');
+    Route::delete('/debts/{debt}', [DebtController::class, 'destroy'])->name('debts.destroy');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings/telegram', [SettingsController::class, 'updateTelegram'])->name('settings.telegram');

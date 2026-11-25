@@ -6,7 +6,7 @@
     </x-slot:actions>
 
     <div class="panel">
-        <div class="grid grid-cols-2 divide-x divide-line lg:grid-cols-4">
+        <div class="grid grid-cols-2 divide-x divide-line lg:grid-cols-5">
             <div class="border-b border-line p-3 lg:border-b-0">
                 <p class="lbl">Market value</p>
                 <p class="num mt-1 text-[17px] font-medium">@money($summary['value'])</p>
@@ -21,9 +21,19 @@
                     {{ $summary['gain'] >= 0 ? '+' : '' }}@money($summary['gain'])
                 </p>
             </div>
-            <div class="p-3">
+            <div class="border-b border-line p-3 lg:border-b-0">
                 <p class="lbl">Return</p>
                 <p class="num mt-1 text-[17px] font-medium {{ $summary['gain_percent'] >= 0 ? 'text-pos' : 'text-neg' }}">{{ $summary['gain_percent'] }}%</p>
+            </div>
+            @php $netWorth = $summary['value'] - $debt['net']; @endphp
+            <div class="p-3">
+                <p class="lbl">Net worth</p>
+                <p class="num mt-1 text-[17px] font-medium {{ $netWorth >= 0 ? 'text-ink' : 'text-neg' }}">@money($netWorth)</p>
+                @if ($debt['net'] != 0)
+                    <p class="text-[10px] text-faint">
+                        assets {{ $debt['net'] > 0 ? 'less' : 'plus' }} @money(abs($debt['net'])) {{ $debt['net'] > 0 ? 'debt' : 'receivable' }}
+                    </p>
+                @endif
             </div>
         </div>
     </div>
