@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Services\DebtSettlement;
 use App\Services\ReportService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
@@ -131,11 +132,14 @@ class TransactionController extends Controller
         $type = $this->type($request);
         $data = $this->validated($request, $type);
 
-        Transaction::create($data + [
+        $transaction = Transaction::create($data + [
             'user_id' => $request->user()->id,
             'type' => $type,
             'source' => 'web',
         ]);
+
+        // An expense in a Debts category pays that debt down.
+        DebtSettlement::apply($transaction);
 
         return redirect()
             ->route("{$type}.index", ['created' => 1])
@@ -162,6 +166,10 @@ class TransactionController extends Controller
 
         $transaction->update($this->validated($request, $type));
 
+        // Amount, category or date may have changed, so re-apply from scratch.
+        DebtSettlement::revert($transaction);
+        DebtSettlement::apply($transaction->refresh());
+
         return redirect()
             ->route("{$type}.index")
             ->with('status', ucfirst($type).' updated successfully.');
@@ -172,6 +180,7 @@ class TransactionController extends Controller
         $type = $this->type($request);
         $this->authorizeTransaction($request, $transaction, $type);
 
+        DebtSettlement::revert($transaction);
         $transaction->delete();
 
         return redirect()

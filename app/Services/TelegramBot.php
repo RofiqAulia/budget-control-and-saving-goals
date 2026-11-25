@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\DebtSettlement;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -107,6 +108,8 @@ class TelegramBot
             'external_id' => $messageId ? "tg:{$chatId}:{$messageId}" : null,
             'meta' => ['raw' => $text, 'chat_id' => $chatId, 'via' => 'keyboard'],
         ]);
+
+        DebtSettlement::apply($transaction);
 
         Cache::forget($this->pendingKey($chatId));
 
@@ -322,6 +325,8 @@ class TelegramBot
             'external_id' => $messageId ? "tg:{$chatId}:{$messageId}" : null,
             'meta' => ['raw' => $text, 'chat_id' => $chatId],
         ]);
+
+        DebtSettlement::apply($transaction);
 
         $label = $category->parent ? "{$category->parent->name} / {$category->name}" : $category->name;
 

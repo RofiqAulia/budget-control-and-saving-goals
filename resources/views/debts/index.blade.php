@@ -398,7 +398,12 @@
                                 ticks: {
                                     font: { size: 9 },
                                     color: '#8a929c',
-                                    callback: (value) => value === 0 ? '0' : (value / 1_000_000).toFixed(0) + 'M',
+                                    callback: (value) => {
+                                        if (value === 0) return '0';
+                                        if (Math.abs(value) >= 1_000_000) return (value / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+                                        if (Math.abs(value) >= 1_000) return Math.round(value / 1_000) + 'K';
+                                        return String(value);
+                                    },
                                 },
                             },
                         },
