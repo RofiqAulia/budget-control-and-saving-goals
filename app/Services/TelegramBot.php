@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +20,7 @@ class TelegramBot
      *
      * @param  array<string, mixed>  $update
      */
-    public function handleUpdate(array $update, User $user): ?string
+    public function handleUpdate(array $update, User $user, ?string $token = null): ?string
     {
         $message = $update['message'] ?? $update['edited_message'] ?? null;
 
@@ -34,11 +35,197 @@ class TelegramBot
             return null;
         }
 
-        if (str_starts_with($text, '/')) {
+        $isCommand = str_starts_with($text, '/');
+
+        // A category was picked from the keyboard; the next text is the amount.
+        $pending = Cache::get($this->pendingKey($chatId));
+
+        if ($pending && ! $isCommand) {
+            return $this->completePending($pending, $text, $user, (string) $chatId, $message['message_id'] ?? null);
+        }
+
+        if ($isCommand) {
+            Cache::forget($this->pendingKey($chatId));
+
+            $command = strtolower(explode(' ', $text)[0]);
+            $type = match ($command) {
+                '/expense', '/pengeluaran', '/keluar' => 'expense',
+                '/income', '/pemasukan', '/masuk' => 'income',
+                default => null,
+            };
+
+            if ($type) {
+                [$keyboardText, $keyboard] = $this->groupsView($user, $type);
+
+                if ($token && $keyboard !== []) {
+                    $this->sendKeyboard($token, $chatId, $keyboardText, $keyboard);
+
+                    return null;
+                }
+
+                return $keyboardText;
+            }
+
             return $this->handleCommand($text, $user);
         }
 
         return $this->handleTransaction($text, $user, (string) $chatId, $message['message_id'] ?? null);
+    }
+
+    private function pendingKey(string|int $chatId): string
+    {
+        return "tg:pending:{$chatId}";
+    }
+
+    /**
+     * Finish the keyboard flow: the pending category plus the amount just typed.
+     */
+    private function completePending(array $pending, string $text, User $user, string $chatId, ?int $messageId): string
+    {
+        $parsed = self::parse($text);
+
+        if (! $parsed) {
+            return 'Send the amount as a number, e.g. 25000. Use /batal to cancel.';
+        }
+
+        $category = Category::forUser($user->id)->whereKey($pending['category_id'] ?? 0)->first();
+
+        if (! $category) {
+            Cache::forget($this->pendingKey($chatId));
+
+            return 'That category no longer exists. Send /expense to start again.';
+        }
+
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'type' => $category->type,
+            'date' => Carbon::now()->toDateString(),
+            'amount' => $parsed['amount'],
+            'description' => $parsed['category'] ?: $category->name,
+            'source' => 'telegram',
+            'external_id' => $messageId ? "tg:{$chatId}:{$messageId}" : null,
+            'meta' => ['raw' => $text, 'chat_id' => $chatId, 'via' => 'keyboard'],
+        ]);
+
+        Cache::forget($this->pendingKey($chatId));
+
+        $label = $category->parent ? "{$category->parent->name} / {$category->name}" : $category->name;
+
+        return ucfirst($category->type).' saved: '.Money::format($transaction->amount).' → '.$label;
+    }
+
+    /**
+     * Inline keyboard navigation: groups → categories → amount.
+     */
+    public function handleCallback(array $callback, User $user, string $token): void
+    {
+        $chatId = $callback['message']['chat']['id'] ?? null;
+        $messageId = $callback['message']['message_id'] ?? null;
+        $data = (string) ($callback['data'] ?? '');
+
+        $this->answerCallback($token, (string) ($callback['id'] ?? ''));
+
+        if (! $chatId || ! $messageId) {
+            return;
+        }
+
+        [$action, $type, $id] = array_pad(explode(':', $data), 3, null);
+        $type = in_array($type, ['income', 'expense'], true) ? $type : 'expense';
+
+        if ($action === 'g') {
+            $group = Category::forUser($user->id)->ofType($type)->roots()->whereKey((int) $id)->first();
+
+            if (! $group) {
+                return;
+            }
+
+            $this->editMessage($token, $chatId, $messageId, "Pick a category in {$group->name}:", $this->subcategoryKeyboard($group));
+
+            return;
+        }
+
+        if ($action === 'c') {
+            $category = Category::forUser($user->id)->ofType($type)->whereKey((int) $id)->first();
+
+            if (! $category) {
+                return;
+            }
+
+            Cache::put(
+                $this->pendingKey($chatId),
+                ['category_id' => $category->id],
+                now()->addMinutes(10)
+            );
+
+            $label = $category->parent ? "{$category->parent->name} / {$category->name}" : $category->name;
+
+            $this->editMessage(
+                $token,
+                $chatId,
+                $messageId,
+                "Send the amount for {$label}.\nExample: 25000",
+                [[['text' => 'Cancel', 'callback_data' => 'x']]]
+            );
+
+            return;
+        }
+
+        if ($action === 'b') {
+            [$keyboardText, $keyboard] = $this->groupsView($user, $type);
+            $this->editMessage($token, $chatId, $messageId, $keyboardText, $keyboard);
+
+            return;
+        }
+
+        if ($action === 'x') {
+            Cache::forget($this->pendingKey($chatId));
+            $this->editMessage($token, $chatId, $messageId, 'Cancelled.');
+        }
+    }
+
+    /**
+     * @return array{0: string, 1: array<int, array<int, array{text: string, callback_data: string}>>}
+     */
+    private function groupsView(User $user, string $type): array
+    {
+        $groups = Category::forUser($user->id)
+            ->ofType($type)
+            ->roots()
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($groups->isEmpty()) {
+            return ['No '.$type.' categories yet. Create them on the web first.', []];
+        }
+
+        $rows = $groups
+            ->map(fn (Category $group) => ['text' => $group->name, 'callback_data' => "g:{$type}:{$group->id}"])
+            ->chunk(2)
+            ->map(fn ($chunk) => $chunk->values()->all())
+            ->values()
+            ->all();
+
+        return [($type === 'income' ? 'Income' : 'Expense').' — pick a group:', $rows];
+    }
+
+    /**
+     * @return array<int, array<int, array{text: string, callback_data: string}>>
+     */
+    private function subcategoryKeyboard(Category $group): array
+    {
+        $rows = $group->children()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (Category $child) => ['text' => $child->name, 'callback_data' => "c:{$group->type}:{$child->id}"])
+            ->chunk(2)
+            ->map(fn ($chunk) => $chunk->values()->all())
+            ->values()
+            ->all();
+
+        $rows[] = [['text' => '← Back', 'callback_data' => "b:{$group->type}"]];
+
+        return $rows;
     }
 
     private function handleCommand(string $text, User $user): string
@@ -49,13 +236,16 @@ class TelegramBot
 
         return match ($command) {
             '/start', '/help' => implode("\n", [
-                'Finora bot — log a transaction by typing it.',
+                'Finora bot — log a transaction by typing it, or tap a category.',
                 '',
-                'Examples:',
+                'Shortcuts:',
+                '  /expense — pick an expense category with buttons',
+                '  /income  — pick an income category with buttons',
+                '',
+                'Or type it:',
                 '  makan 25000',
                 '  kopi 15rb',
                 '  bensin 20k',
-                '  gaji 5.400.000',
                 '  income shopee 180000',
                 '',
                 'Commands:',
@@ -253,6 +443,81 @@ class TelegramBot
             ->implode(', ');
     }
 
+    /**
+     * Send a message carrying an inline keyboard.
+     *
+     * @param  array<int, array<int, array{text: string, callback_data: string}>>  $keyboard
+     */
+    public function sendKeyboard(string $token, string|int $chatId, string $text, array $keyboard): bool
+    {
+        try {
+            $response = Http::timeout(10)->post(self::API.$token.'/sendMessage', [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'reply_markup' => ['inline_keyboard' => $keyboard],
+            ]);
+
+            if (! $response->successful()) {
+                Log::warning('Telegram sendMessage (keyboard) failed', ['status' => $response->status(), 'body' => $response->body()]);
+            }
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('Telegram sendMessage (keyboard) error: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Replace a keyboard message in place as the user drills down.
+     *
+     * @param  array<int, array<int, array{text: string, callback_data: string}>>|null  $keyboard
+     */
+    public function editMessage(string $token, string|int $chatId, int $messageId, string $text, ?array $keyboard = null): bool
+    {
+        try {
+            $payload = [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $text,
+            ];
+
+            if ($keyboard !== null) {
+                $payload['reply_markup'] = ['inline_keyboard' => $keyboard];
+            }
+
+            $response = Http::timeout(10)->post(self::API.$token.'/editMessageText', $payload);
+
+            // Tapping the same button twice returns "message is not modified"; that is fine.
+            if (! $response->successful()) {
+                $description = (string) ($response->json('description') ?? '');
+
+                if (! str_contains($description, 'not modified')) {
+                    Log::warning('Telegram editMessageText failed', ['status' => $response->status(), 'body' => $response->body()]);
+                }
+            }
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('Telegram editMessageText error: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    public function answerCallback(string $token, string $callbackId, string $text = ''): void
+    {
+        try {
+            Http::timeout(10)->post(self::API.$token.'/answerCallbackQuery', [
+                'callback_query_id' => $callbackId,
+                'text' => $text,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Telegram answerCallbackQuery error: '.$e->getMessage());
+        }
+    }
+
     public function send(string $token, string|int $chatId, string $text): bool
     {
         try {
@@ -282,7 +547,7 @@ class TelegramBot
         try {
             $response = Http::timeout(10)->post(self::API.$token.'/setWebhook', [
                 'url' => $url,
-                'allowed_updates' => ['message', 'edited_message'],
+                'allowed_updates' => ['message', 'edited_message', 'callback_query'],
             ]);
 
             $body = $response->json();
@@ -308,7 +573,7 @@ class TelegramBot
             $response = Http::timeout($timeout + 10)->get(self::API.$token.'/getUpdates', [
                 'offset' => $offset,
                 'timeout' => $timeout,
-                'allowed_updates' => ['message', 'edited_message'],
+                'allowed_updates' => ['message', 'edited_message', 'callback_query'],
             ]);
 
             $body = $response->json();

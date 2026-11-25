@@ -80,7 +80,15 @@ class TelegramPoll extends Command
                     $this->line("Captured chat_id {$chatId}.");
                 }
 
-                $reply = $bot->handleUpdate($update, $integration->user);
+                // Keyboard taps: handle them, then move on (they edit a message).
+                if (isset($update['callback_query'])) {
+                    $bot->handleCallback($update['callback_query'], $integration->user, $token);
+                    $this->line("Handled #{$update['update_id']}: callback");
+
+                    continue;
+                }
+
+                $reply = $bot->handleUpdate($update, $integration->user, $token);
 
                 if ($reply && $chatId) {
                     $bot->send($token, $chatId, $reply);

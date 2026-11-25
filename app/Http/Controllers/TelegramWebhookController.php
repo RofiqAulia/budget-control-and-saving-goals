@@ -26,14 +26,23 @@ class TelegramWebhookController extends Controller
         // Unknown secret: pretend nothing is here.
         abort_unless($integration && $integration->user, 404);
 
+        $token = (string) $integration->configValue('bot_token');
+
+        // Inline keyboard taps are handled by editing the message, not by a text reply.
+        if ($request->has('callback_query')) {
+            $bot->handleCallback($request->input('callback_query'), $integration->user, $token);
+
+            return response()->json(['ok' => true]);
+        }
+
         $update = $request->all();
-        $reply = $bot->handleUpdate($update, $integration->user);
+        $reply = $bot->handleUpdate($update, $integration->user, $token);
 
         $chatId = data_get($update, 'message.chat.id')
             ?? data_get($update, 'edited_message.chat.id');
 
         if ($reply && $chatId) {
-            $bot->send((string) $integration->configValue('bot_token'), $chatId, $reply);
+            $bot->send($token, $chatId, $reply);
         }
 
         return response()->json(['ok' => true]);
