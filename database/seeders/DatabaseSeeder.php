@@ -19,9 +19,18 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed a demo account whose numbers reproduce the sample spreadsheet exactly.
+     *
+     * Local only: this creates sample transactions, so it must never touch a
+     * production database.
      */
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->warn('DatabaseSeeder is demo data and is disabled in production. Use `php artisan app:reset` instead.');
+
+            return;
+        }
+
         $user = User::firstOrCreate(
             ['email' => 'demo@finance.app'],
             ['name' => 'Demo User', 'password' => 'password']
