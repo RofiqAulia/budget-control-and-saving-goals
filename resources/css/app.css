@@ -1,0 +1,224 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    /* Ledger palette */
+    --color-ink: #1b1f24;
+    --color-muted: #5a6169;
+    --color-faint: #8b9199;
+    --color-line: #dde1e6;
+    --color-line-strong: #c9cdd4;
+    --color-canvas: #f2f4f7;
+    --color-panel: #ffffff;
+
+    --color-accent: #185fa5;
+    --color-accent-soft: #e6f1fb;
+    --color-pos: #0f6e56;
+    --color-pos-soft: #e1f5ee;
+    --color-neg: #a32d2d;
+    --color-neg-soft: #fcebeb;
+    --color-warn: #854f0b;
+    --color-warn-soft: #faeeda;
+}
+
+@layer base {
+    html {
+        font-size: 13px;
+    }
+
+    body {
+        background: var(--color-canvas);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* Numbers always line up in columns. */
+    .num {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+    }
+}
+
+@layer components {
+    .lbl {
+        font-size: 10px;
+        line-height: 1.4;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--color-faint);
+        font-weight: 500;
+    }
+
+    .panel {
+        background: var(--color-panel);
+        border: 1px solid var(--color-line);
+        border-radius: 3px;
+    }
+
+    .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 10px;
+        background: var(--color-canvas);
+        border-bottom: 1px solid var(--color-line);
+    }
+
+    .field {
+        width: 100%;
+        background: #fff;
+        border: 1px solid var(--color-line-strong);
+        border-radius: 2px;
+        padding: 5px 8px;
+        font-size: 12px;
+        color: var(--color-ink);
+        outline: none;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .field:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.14);
+    }
+
+    .field::placeholder {
+        color: var(--color-faint);
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--color-line-strong);
+        border-radius: 2px;
+        background: #fff;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--color-ink);
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .btn:hover {
+        background: var(--color-canvas);
+        border-color: var(--color-faint);
+    }
+
+    .btn-primary {
+        background: var(--color-accent);
+        border-color: var(--color-accent);
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: #14507f;
+        border-color: #14507f;
+    }
+
+    .btn-danger {
+        color: var(--color-neg);
+    }
+
+    .btn-destructive {
+        background: var(--color-neg);
+        border-color: var(--color-neg);
+        color: #fff;
+    }
+
+    .btn-destructive:hover {
+        background: #8c2626;
+        border-color: #8c2626;
+    }
+
+    .btn-danger:hover {
+        background: var(--color-neg-soft);
+        border-color: #e8b7b7;
+    }
+
+    .th {
+        padding: 6px 10px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--color-faint);
+        background: var(--color-canvas);
+        border-bottom: 1px solid var(--color-line);
+        white-space: nowrap;
+    }
+
+    .td {
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--color-ink);
+        border-bottom: 1px solid #edf0f3;
+        vertical-align: middle;
+    }
+
+    .row-hover:hover {
+        background: #fafbfc;
+    }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid var(--color-line);
+        border-radius: 2px;
+        padding: 1px 5px;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+        background: #fff;
+    }
+
+    .bar {
+        height: 4px;
+        background: #edf0f3;
+        border-radius: 1px;
+        overflow: hidden;
+    }
+
+    .bar > span {
+        display: block;
+        height: 100%;
+        background: var(--color-accent);
+    }
+}
+
+/* Collapsed sidebar: icon-only rail on desktop.
+   Unlayered on purpose so the width wins over Tailwind's w-52 utility. */
+@media (min-width: 1024px) {
+    #sidebar.is-collapsed {
+        width: 3.5rem;
+    }
+
+    #sidebar.is-collapsed .sb-brand,
+    #sidebar.is-collapsed .sb-section,
+    #sidebar.is-collapsed .sb-label,
+    #sidebar.is-collapsed .sb-subnav,
+    #sidebar.is-collapsed .sb-user-meta {
+        display: none;
+    }
+
+    #sidebar.is-collapsed .sb-head,
+    #sidebar.is-collapsed .sb-link,
+    #sidebar.is-collapsed .sb-user {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+        gap: 0;
+    }
+}
