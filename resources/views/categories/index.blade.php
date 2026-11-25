@@ -2,7 +2,7 @@
     $label = ucfirst($type);
 @endphp
 
-<x-app-layout :title="$label . ' categories'" :subtitle="'Groups and sub-categories used by ' . strtolower($label) . ' entries'">
+<x-app-layout :title="($scope ?? null) ? $scope . ' categories' : $label . ' categories'" :subtitle="($scope ?? null) ? 'Sub-categories under ' . $scope : 'Groups and sub-categories used by ' . strtolower($label) . ' entries'">
     <x-slot:actions>
         <button type="button" onclick="openCatModal()" class="btn btn-primary">
             <x-icon name="plus" class="h-3 w-3" /> Add category

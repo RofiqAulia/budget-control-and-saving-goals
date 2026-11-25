@@ -67,6 +67,7 @@ Route::middleware('auth')->group(function () {
 
     // Debts and receivables; they feed net worth on the portfolio page.
     Route::get('/debts', [DebtController::class, 'index'])->name('debts.index');
+    Route::get('/debts/categories', [CategoryController::class, 'debtsCategories'])->name('debts.categories');
     Route::post('/debts', [DebtController::class, 'store'])->name('debts.store');
     Route::put('/debts/{debt}', [DebtController::class, 'update'])->name('debts.update');
     Route::post('/debts/{debt}/pay', [DebtController::class, 'pay'])->name('debts.pay');

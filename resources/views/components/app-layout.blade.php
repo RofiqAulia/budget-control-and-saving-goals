@@ -37,7 +37,14 @@
     ];
     $secondaryNav = [
         ['route' => 'savings.index', 'label' => 'Savings', 'icon' => 'savings'],
-        ['route' => 'debts.index', 'label' => 'Debts', 'icon' => 'debt'],
+        [
+            'route' => 'debts.index',
+            'label' => 'Debts',
+            'icon' => 'debt',
+            'children' => [
+                ['route' => 'debts.categories', 'label' => 'Categories'],
+            ],
+        ],
         ['route' => 'portfolio.index', 'label' => 'Portfolio', 'icon' => 'portfolio'],
         ['route' => 'settings.index', 'label' => 'Integrations', 'icon' => 'settings'],
     ];
@@ -86,7 +93,10 @@
 
             <p class="sb-section lbl px-3 pb-1 pt-4">More</p>
             @foreach ($secondaryNav as $item)
-                @php $active = request()->routeIs($item['route']); @endphp
+                @php
+                    $childActive = collect($item['children'] ?? [])->contains(fn ($child) => request()->routeIs($child['route']));
+                    $active = request()->routeIs($item['route']) || $childActive;
+                @endphp
                 <a href="{{ route($item['route']) }}" title="{{ $item['label'] }}"
                    class="sb-link flex items-center gap-2 border-l-2 py-[6px] pl-[10px] pr-3 text-[12px] transition
                           {{ $active
@@ -95,6 +105,19 @@
                     <x-icon :name="$item['icon']" class="h-3.5 w-3.5 shrink-0 {{ $active ? 'text-accent' : 'text-faint' }}" />
                     <span class="sb-label truncate">{{ $item['label'] }}</span>
                 </a>
+
+                @if (! empty($item['children']))
+                    <div class="sb-subnav mb-1 ml-[26px] border-l border-line pl-2">
+                        @foreach ($item['children'] as $child)
+                            @php $isChildActive = request()->routeIs($child['route']); @endphp
+                            <a href="{{ route($child['route']) }}"
+                               class="block py-[4px] pl-1 pr-2 text-[11px] transition
+                                      {{ $isChildActive ? 'font-medium text-accent' : 'text-muted hover:text-ink' }}">
+                                {{ $child['label'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
             @endforeach
 
             {{-- Sign out lives in the nav so it is reachable in both sidebar states --}}

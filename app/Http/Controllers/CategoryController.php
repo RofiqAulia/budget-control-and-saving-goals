@@ -13,10 +13,29 @@ class CategoryController extends Controller
 {
     public function index(Request $request): View
     {
-        $type = $this->type($request);
+        return $this->listing($request, $this->type($request), $request->query('group'));
+    }
+
+    /**
+     * The Debts menu shows only the Debts group, using the expense category routes.
+     */
+    public function debtsCategories(Request $request): View
+    {
+        return $this->listing($request, 'expense', 'Debts');
+    }
+
+    private function listing(Request $request, string $type, ?string $scope): View
+    {
         $period = Carbon::now()->format('Y-m');
 
         $groups = $this->groups($request, $type);
+
+        // Optional scope, e.g. ?group=Debts.
+        if ($scope) {
+            $groups = $groups
+                ->filter(fn (Category $group) => mb_strtolower($group->name) === mb_strtolower($scope))
+                ->values();
+        }
 
         // This month's activity per category, so the list shows what each one is worth.
         $totals = Transaction::forUser($request->user()->id)
@@ -58,6 +77,7 @@ class CategoryController extends Controller
             'groups' => $groups,
             'groupCount' => $groups->count(),
             'leafCount' => $groups->sum(fn (Category $group) => $group->children->count()),
+            'scope' => $scope,
         ]);
     }
 
