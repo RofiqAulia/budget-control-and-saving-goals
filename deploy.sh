@@ -17,7 +17,8 @@ git pull --ff-only
 # Dependencies change only when composer.json / composer.lock change.
 if command -v composer >/dev/null 2>&1; then
     echo "==> Composer install"
-    composer install --no-dev --optimize-autoloader --no-interaction
+    composer install --no-dev --optimize-autoloader --no-interaction \
+        || echo "    composer failed — keeping the existing vendor/"
 else
     echo "==> composer not found — keeping the existing vendor/"
 fi
