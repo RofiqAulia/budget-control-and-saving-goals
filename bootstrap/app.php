@@ -25,12 +25,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
 /*
  * Shared hosting layout: the web root sits beside the app (public_html), not
- * inside it (public). Pointing public_path() there keeps @vite, asset() and
- * storage:link working without duplicating files.
+ * inside it. Prefer it whenever it exists so @vite, asset() and the served
+ * files always come from the same place.
  */
 $sharedWebRoot = dirname(__DIR__, 2).'/public_html';
 
-if (is_dir($sharedWebRoot) && ! is_dir(dirname(__DIR__).'/public')) {
+if (is_dir($sharedWebRoot)) {
     $app->usePublicPath($sharedWebRoot);
 }
 
