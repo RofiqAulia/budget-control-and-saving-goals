@@ -69,6 +69,13 @@ class CategoryTemplate
                 'icon' => 'gift',
                 'children' => ['Self Reward'],
             ],
+            [
+                'type' => 'expense',
+                'name' => 'Debts',
+                'color' => '#b91c1c',
+                'icon' => 'debt',
+                'children' => ['Cicilan Motor', 'Kartu Kredit', 'Pinjaman'],
+            ],
         ];
     }
 
