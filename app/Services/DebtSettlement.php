@@ -35,9 +35,22 @@ class DebtSettlement
             return;
         }
 
+        $category = Category::find($transaction->category_id);
+        $categoryName = mb_strtolower($category?->name ?? '');
+
         $debts = Debt::forUser($transaction->user_id)
-            ->where('category_id', $transaction->category_id)
             ->where('is_settled', false)
+            ->where(function ($query) use ($transaction, $categoryName) {
+                $query->where('category_id', $transaction->category_id);
+
+                // Debts created before the category picker existed only have a name.
+                if ($categoryName !== '') {
+                    $query->orWhere(function ($legacy) use ($categoryName) {
+                        $legacy->whereNull('category_id')
+                            ->whereRaw('LOWER(name) = ?', [$categoryName]);
+                    });
+                }
+            })
             ->orderByRaw('due_date IS NULL')
             ->orderBy('due_date')
             ->orderBy('id')
