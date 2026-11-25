@@ -57,6 +57,9 @@ class SettingsController extends Controller
 
         $webhook = $bot->setWebhook($config['bot_token'], url("/telegram/webhook/{$config['webhook_secret']}"));
 
+        // Registers the ☰ menu inside Telegram so the shortcuts are discoverable.
+        $bot->setCommands($config['bot_token']);
+
         $integration->update([
             'last_error' => $webhook['ok'] ? null : $webhook['message'],
         ]);

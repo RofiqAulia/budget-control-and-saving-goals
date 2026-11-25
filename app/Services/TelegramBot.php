@@ -506,6 +506,44 @@ class TelegramBot
         }
     }
 
+    /**
+     * The ☰ command menu inside Telegram. Without this the bot looks empty.
+     *
+     * @return array<int, array{command: string, description: string}>
+     */
+    public static function commands(): array
+    {
+        return [
+            ['command' => 'expense', 'description' => 'Catat pengeluaran — pilih kategori'],
+            ['command' => 'income', 'description' => 'Catat pemasukan — pilih kategori'],
+            ['command' => 'saldo', 'description' => 'Ringkasan bulan ini'],
+            ['command' => 'budget', 'description' => 'Status budget'],
+            ['command' => 'laporan', 'description' => 'Link laporan di web'],
+            ['command' => 'help', 'description' => 'Cara pakai bot'],
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, message: string}
+     */
+    public function setCommands(string $token): array
+    {
+        try {
+            $response = Http::timeout(10)->post(self::API.$token.'/setMyCommands', [
+                'commands' => self::commands(),
+            ]);
+
+            $body = $response->json();
+
+            return [
+                'ok' => (bool) ($body['ok'] ?? false),
+                'message' => $body['description'] ?? ($response->successful() ? 'Commands registered.' : 'Telegram rejected the command list.'),
+            ];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'message' => $e->getMessage()];
+        }
+    }
+
     public function answerCallback(string $token, string $callbackId, string $text = ''): void
     {
         try {
