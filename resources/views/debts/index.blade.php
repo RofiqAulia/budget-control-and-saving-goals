@@ -94,6 +94,7 @@
                                             data-id="{{ $debt->id }}"
                                             data-action="{{ route('debts.update', $debt) }}"
                                             data-name="{{ $debt->name }}"
+                                            data-category="{{ $debt->category_id }}"
                                             data-type="{{ $debt->type }}"
                                             data-principal="{{ number_format($debt->principal_amount, 0, '', '') }}"
                                             data-remaining="{{ number_format($debt->remaining_amount, 0, '', '') }}"
@@ -142,8 +143,20 @@
 
             <div class="grid gap-3 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                    <label class="lbl mb-1 block">Name</label>
-                    <input name="name" required maxlength="120" placeholder="e.g. Motor instalment" class="field">
+                    <label for="debt-category" class="lbl mb-1 block">Category</label>
+                    <select name="category_id" id="debt-category" class="field" required>
+                        <option value="">Choose a debt category…</option>
+                        @foreach ($debtCategories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                        <option value="__new">＋ Add debt category…</option>
+                    </select>
+
+                    @if ($debtCategories->isEmpty())
+                        <p class="mt-1 text-[10px] text-faint">
+                            Belum ada kategori Debts. Pilih "Add debt category…" untuk membuatnya lebih dulu.
+                        </p>
+                    @endif
                 </div>
 
                 <div>
@@ -228,6 +241,15 @@
                 const title = document.querySelector('#debt-modal [data-modal-title]');
                 const submit = form.querySelector('.btn-primary');
                 const storeAction = @json(route('debts.store'));
+                const categoriesUrl = @json(route('debts.categories'));
+                const categorySelect = document.getElementById('debt-category');
+
+                // The last option leaves the form and opens the category manager.
+                categorySelect.addEventListener('change', function () {
+                    if (this.value === '__new') {
+                        window.location.href = categoriesUrl;
+                    }
+                });
 
                 window.openDebtModal = function (button) {
                     form.reset();
@@ -236,7 +258,7 @@
                     if (editing) {
                         form.action = button.dataset.action;
                         method.value = 'PUT';
-                        form.querySelector('[name="name"]').value = button.dataset.name;
+                        categorySelect.value = button.dataset.category || '';
                         form.querySelector('[name="type"]').value = button.dataset.type;
                         form.querySelector('[name="principal_amount"]').value = button.dataset.principal;
                         form.querySelector('[name="remaining_amount"]').value = button.dataset.remaining;

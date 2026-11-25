@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Debt extends Model
@@ -13,7 +14,7 @@ class Debt extends Model
     public const RECEIVABLE = 'receivable';
 
     protected $fillable = [
-        'user_id', 'name', 'type', 'principal_amount', 'remaining_amount',
+        'user_id', 'category_id', 'name', 'type', 'principal_amount', 'remaining_amount',
         'interest_rate', 'minimum_payment', 'due_date', 'note', 'is_settled',
     ];
 
@@ -34,6 +35,11 @@ class Debt extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(DebtPayment::class)->orderByDesc('paid_on')->orderByDesc('id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function getIsReceivableAttribute(): bool

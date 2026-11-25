@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Debt;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DebtController extends Controller
@@ -24,7 +26,26 @@ class DebtController extends Controller
         return view('debts.index', [
             'debts' => $debts,
             'summary' => Debt::summaryFor($request->user()->id),
+            'debtCategories' => $this->debtCategories($request),
         ]);
+    }
+
+    /**
+     * Sub-categories under the "Debts" group; the add form picks from these.
+     */
+    private function debtCategories(Request $request): \Illuminate\Support\Collection
+    {
+        $group = Category::forUser($request->user()->id)
+            ->ofType('expense')
+            ->roots()
+            ->whereRaw('LOWER(name) = ?', ['debts'])
+            ->first();
+
+        if (! $group) {
+            return collect();
+        }
+
+        return $group->children()->orderBy('sort_order')->get();
     }
 
     public function store(Request $request): RedirectResponse
@@ -109,12 +130,13 @@ class DebtController extends Controller
     }
 
     /**
-     * @return array{name: string, type: string, principal_amount: float, remaining_amount: ?float, interest_rate: ?float, minimum_payment: ?float, due_date: ?string, note: ?string}
+     * @return array{name: string, category_id: ?int, type: string, principal_amount: float, remaining_amount: ?float, interest_rate: ?float, minimum_payment: ?float, due_date: ?string, note: ?string}
      */
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
+            'category_id' => ['nullable', 'integer'],
+            'name' => ['nullable', 'string', 'max:120'],
             'type' => ['required', Rule::in([Debt::DEBT, Debt::RECEIVABLE])],
             'principal_amount' => ['required', 'string', 'max:30'],
             'remaining_amount' => ['nullable', 'string', 'max:30'],
@@ -124,8 +146,32 @@ class DebtController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $category = null;
+
+        if (! empty($data['category_id'])) {
+            $category = Category::forUser($request->user()->id)
+                ->whereKey($data['category_id'])
+                ->first();
+
+            if (! $category) {
+                throw ValidationException::withMessages([
+                    'category_id' => 'That category no longer exists.',
+                ]);
+            }
+        }
+
+        // The category provides the name; free text is only a fallback for old rows.
+        $name = $category?->name ?? trim((string) ($data['name'] ?? ''));
+
+        if ($name === '') {
+            throw ValidationException::withMessages([
+                'category_id' => 'Pick a debt category, or add one first.',
+            ]);
+        }
+
         return [
-            'name' => $data['name'],
+            'name' => $name,
+            'category_id' => $category?->id,
             'type' => $data['type'],
             'principal_amount' => Money::parse($data['principal_amount']),
             'remaining_amount' => filled($data['remaining_amount'] ?? null)
