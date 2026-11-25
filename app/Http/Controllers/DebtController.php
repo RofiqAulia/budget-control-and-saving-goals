@@ -27,7 +27,29 @@ class DebtController extends Controller
             'debts' => $debts,
             'summary' => Debt::summaryFor($request->user()->id),
             'debtCategories' => $this->debtCategories($request),
+            'projection' => Debt::payoffProjection($request->user()->id),
+            'composition' => $this->composition($request),
         ]);
+    }
+
+    /**
+     * Outstanding amount per debt category, biggest first.
+     */
+    private function composition(Request $request): \Illuminate\Support\Collection
+    {
+        return Debt::forUser($request->user()->id)
+            ->where('is_settled', false)
+            ->where('type', Debt::DEBT)
+            ->with('category')
+            ->get()
+            ->groupBy(fn (Debt $debt) => $debt->category?->name ?? $debt->name)
+            ->map(fn ($rows, $name) => [
+                'name' => $name,
+                'total' => (float) $rows->sum('remaining_amount'),
+                'color' => $rows->first()->category?->color ?? '#b91c1c',
+            ])
+            ->sortByDesc('total')
+            ->values();
     }
 
     /**

@@ -36,6 +36,32 @@
                 @endif
             </div>
         </div>
+
+        @php
+            $assets = max(0.0, (float) $summary['value']);
+            $liabilities = max(0.0, (float) $debt['net']);
+            $scale = $assets + $liabilities;
+            $assetShare = $scale > 0 ? (int) round($assets / $scale * 100) : 0;
+        @endphp
+
+        @if ($liabilities > 0)
+            <div class="border-t border-line px-3 py-2">
+                <div class="flex h-1.5 w-full overflow-hidden">
+                    <div style="width: {{ $assetShare }}%; background: #185fa5"></div>
+                    <div style="width: {{ 100 - $assetShare }}%; background: #a32d2d"></div>
+                </div>
+                <div class="mt-1.5 flex items-center justify-between text-[10px] text-muted">
+                    <span class="flex items-center gap-1">
+                        <span class="inline-block h-1.5 w-1.5" style="background: #185fa5"></span>
+                        Assets @money($assets) · {{ $assetShare }}%
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <span class="inline-block h-1.5 w-1.5" style="background: #a32d2d"></span>
+                        Debt @money($liabilities) · {{ 100 - $assetShare }}%
+                    </span>
+                </div>
+            </div>
+        @endif
     </div>
 
     <x-modal id="holding-modal" title="Add holding">

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Debt extends Model
 {
@@ -59,6 +60,50 @@ class Debt extends Model
         }
 
         return (int) min(100, round(($this->paid_amount / $this->principal_amount) * 100));
+    }
+
+    /**
+     * Straight-line payoff projection: every active debt loses its minimum
+     * payment each month. Interest is ignored, so treat it as a best case.
+     *
+     * @return array{labels: array<int, string>, balances: array<int, float>, monthly: float, total: float, months_to_zero: ?int}
+     */
+    public static function payoffProjection(int $userId, int $months = 12): array
+    {
+        $debts = static::forUser($userId)
+            ->where('is_settled', false)
+            ->where('type', self::DEBT)
+            ->get(['remaining_amount', 'minimum_payment']);
+
+        $balance = (float) $debts->sum('remaining_amount');
+        $monthly = (float) $debts->sum(fn (Debt $debt) => (float) ($debt->minimum_payment ?? 0));
+
+        $labels = ['Now'];
+        $balances = [round($balance)];
+        $monthsToZero = null;
+
+        for ($i = 1; $i <= $months; $i++) {
+            $balance = max(0.0, $balance - $monthly);
+
+            $labels[] = Carbon::now()->addMonthsNoOverflow($i)->format('M y');
+            $balances[] = round($balance);
+
+            if ($balance <= 0 && $monthsToZero === null) {
+                $monthsToZero = $i;
+            }
+
+            if ($balance <= 0) {
+                break;
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'balances' => $balances,
+            'monthly' => $monthly,
+            'total' => (float) $debts->sum('remaining_amount'),
+            'months_to_zero' => $monthsToZero,
+        ];
     }
 
     /**

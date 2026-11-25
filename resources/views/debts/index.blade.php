@@ -26,6 +26,62 @@
         </div>
     </div>
 
+    <div class="mt-3 grid gap-3 lg:grid-cols-3">
+        <div class="panel lg:col-span-2">
+            <div class="panel-head">
+                <h2 class="text-[12px] font-medium">Payoff projection</h2>
+                <span class="num text-[10px] text-faint">
+                    @if ($projection['monthly'] > 0)
+                        @money($projection['monthly']) / month
+                    @else
+                        no minimum set
+                    @endif
+                </span>
+            </div>
+
+            <div class="h-44 p-3">
+                <canvas id="payoffChart"></canvas>
+            </div>
+
+            <p class="border-t border-line bg-canvas px-3 py-[5px] text-[10px] leading-relaxed text-faint">
+                @if ($projection['months_to_zero'])
+                    At the current minimum payment, everything is cleared in {{ $projection['months_to_zero'] }} months.
+                @elseif ($projection['monthly'] <= 0)
+                    Set a minimum payment on each debt to see a payoff curve.
+                @else
+                    Not settled within 12 months at the current minimum payment.
+                @endif
+            </p>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <h2 class="text-[12px] font-medium">Composition</h2>
+                <span class="num text-[10px] text-faint">{{ $composition->count() }}</span>
+            </div>
+
+            @if ($composition->isEmpty())
+                <p class="p-3 text-[11px] text-faint">No active debts.</p>
+            @else
+                <div class="divide-y divide-[#edf0f3]">
+                    @foreach ($composition as $row)
+                        @php $share = $summary['payable'] > 0 ? (int) round($row['total'] / $summary['payable'] * 100) : 0; @endphp
+                        <div class="px-3 py-[7px]">
+                            <div class="flex items-baseline justify-between gap-2 text-[11px]">
+                                <span class="truncate">{{ $row['name'] }}</span>
+                                <span class="num shrink-0 text-faint">{{ $share }}%</span>
+                            </div>
+                            <div class="mt-1 flex items-center gap-2">
+                                <div class="bar flex-1"><span style="width: {{ max(2, $share) }}%; background: {{ $row['color'] }}"></span></div>
+                                <span class="num shrink-0 text-[10px] text-muted">@money($row['total'])</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
     <div class="mt-3 panel">
         <div class="panel-head">
             <h2 class="text-[12px] font-medium">Debts &amp; receivables</h2>
@@ -289,6 +345,66 @@
                     openModal('pay-modal');
                 };
             })();
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const canvas = document.getElementById('payoffChart');
+
+                if (!canvas) return;
+
+                const projection = @json($projection);
+                const rupiah = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+
+                new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: projection.labels,
+                        datasets: [{
+                            label: 'Outstanding',
+                            data: projection.balances,
+                            borderColor: '#a32d2d',
+                            backgroundColor: 'rgba(163, 45, 45, 0.08)',
+                            borderWidth: 1.5,
+                            fill: true,
+                            pointRadius: 2,
+                            pointBackgroundColor: '#fff',
+                            pointBorderWidth: 1.5,
+                            tension: 0.25,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1b1f24',
+                                titleFont: { size: 11 },
+                                bodyFont: { size: 11, family: 'JetBrains Mono' },
+                                padding: 8,
+                                cornerRadius: 2,
+                                callbacks: {
+                                    label: (ctx) => 'Outstanding: Rp' + rupiah.format(ctx.parsed.y),
+                                },
+                            },
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 9 }, color: '#8a929c' },
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#edf0f3' },
+                                ticks: {
+                                    font: { size: 9 },
+                                    color: '#8a929c',
+                                    callback: (value) => value === 0 ? '0' : (value / 1_000_000).toFixed(0) + 'M',
+                                },
+                            },
+                        },
+                    },
+                });
+            });
         </script>
     @endpush
 </x-app-layout>
